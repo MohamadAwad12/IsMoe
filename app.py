@@ -1,9 +1,9 @@
-# app.py
 from flask import Flask, render_template
 import requests
 import time
 from flask_socketio import SocketIO, emit
 import logging
+import os
 from threading import Thread
 
 # Configure logging
@@ -11,21 +11,26 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, 
+                   cors_allowed_origins="*",
+                   async_mode='eventlet',
+                   logger=True,
+                   engineio_logger=True)
 
 # Configuration
 TOKENS = {
     'PONKE': {
         'address': '5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC',
-        'holdings': 166344.74
+        'holdings': 1000000
     },
     'GME': {
         'address': '8wXtPeU6557ETkp9WHFY1n1EcU6NxDvbAggHGsMYiHsB',
-        'holdings': 14943435.79
+        'holdings': 1000000
     },
     'USA': {
         'address': '69kdRLyP5DTRkpHraaSZAQbWmAwzF9guKjZfzMXzcbAs',
-        'holdings': 117594077307.36
+        'holdings': 1000000
     }
 }
 
@@ -35,7 +40,7 @@ def get_token_price(token_address):
         url = f"https://api.dexscreener.com/latest/dex/tokens/{token_address}"
         logger.info(f"Fetching price for {token_address}")
         
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             data = response.json()
             logger.info(f"DEX Screener response received for {token_address}")
@@ -45,15 +50,15 @@ def get_token_price(token_address):
                 raydium_pairs = [p for p in data['pairs'] if p['dexId'] == 'raydium']
                 
                 if raydium_pairs:
-                    pair = raydium_pairs[0]  # Use the first Raydium pair
+                    pair = raydium_pairs[0]
                 else:
-                    pair = data['pairs'][0]  # Fallback to first available pair
+                    pair = data['pairs'][0]
                 
                 price = float(pair['priceUsd'])
                 priceChange = pair.get('priceChange', {}).get('h24', 0)
                 volume24h = float(pair.get('volume', {}).get('h24', 0))
                 
-                logger.info(f"Price found: ${price:.8f} | 24h Change: {priceChange}% | 24h Volume: ${volume24h:.2f}")
+                logger.info(f"Price found: ${price:.8f}")
                 
                 return {
                     'price': price,
@@ -73,7 +78,6 @@ def get_token_price(token_address):
     except Exception as e:
         logger.error(f"Error fetching price: {str(e)}")
     
-    # Return default values if anything fails
     return {
         'price': 0,
         'priceChange24h': 0,
@@ -127,7 +131,7 @@ def update_prices():
         except Exception as e:
             logger.error(f"Update error: {str(e)}")
         
-        time.sleep(3)  # Wait 3 seconds before next update
+        time.sleep(3)
 
 @app.route('/')
 def index():
@@ -150,6 +154,12 @@ if __name__ == '__main__':
     price_thread.daemon = True
     price_thread.start()
     
+    # Get port from environment variable or use default
+    port = int(os.environ.get('PORT', 5000))
+    
     # Run the application
-    logger.info("Starting Flask application...")
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, 
+                host='0.0.0.0', 
+                port=port,
+                debug=False,
+                use_reloader=False)

@@ -1,1 +1,1 @@
-web pip install gunicorn && gunicorn --worker-class eventlet -w 1 appapp
+web: gunicorn --worker-class eventlet -w 1 -b 0.0.0.0:$PORT app:app
