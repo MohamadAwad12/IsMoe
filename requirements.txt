@@ -5,3 +5,10 @@ requests==2.31.0
 python-dotenv==1.0.0
 gevent-websocket==0.10.1
 aiohttp==3.8.5
+<<<<<<< HEAD
+=======
+gunicorn==21.2.0
+eventlet==0.33.3
+gevent==23.9.1
+Werkzeug==2.3.7
+>>>>>>> ea65920 (Fix: Update deployment configuration)
